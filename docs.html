@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"> <!-- Prevent zooming -->
+    <title>Video Search App</title>
+    <link rel="stylesheet" href="docs.css">
+    <style>
+        body {
+            overflow-x: hidden; /* Prevent horizontal scrolling */
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: url('https://i.giphy.com/media/v1.Y2lkPTc5MGI3NjExdW53NDd0OG13eXcxaG5iZ2xjZnA0Mm1xb2c0aXA0M2cxNXMwdjE0bCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/9WC8WTZsFxkRi/giphy.gif') no-repeat center center fixed; /* Set GIF as background */
+            background-size: cover; /* Cover the entire body */
+        }
+
+        .container {
+            padding: 20px;
+            max-width: 600px; /* Set a max-width for better layout */
+            margin: auto; /* Center the container */
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, 0.9); /* Add a semi-transparent background to the container */
+            border-radius: 10px; /* Rounded corners for aesthetics */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); /* Add shadow for depth */
+        }
+
+        .search-input, .search-button {
+            width: 100%; /* Full width for mobile */
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            box-sizing: border-box; /* Include padding in width calculation */
+        }
+
+        .search-button {
+            background-color: #007BFF;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .video-item {
+            background-color: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            word-wrap: break-word; /* Break long words to prevent overflow */
+        }
+
+        .video-item h3 {
+            margin: 0 0 5px;
+        }
+
+        .video-item p {
+            margin: 0 0 10px;
+        }
+
+        .popup {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            box-sizing: border-box; /* Ensure padding is included in width */
+        }
+
+        .popup-content {
+            background-color: #fff;
+            margin: auto;
+            padding: 20px;
+            border-radius: 5px;
+            width: 90%; /* Responsive width */
+            max-width: 500px; /* Max width for larger screens */
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            position: relative; /* Allow for positioning */
+            top: 50%; /* Position from the top */
+            transform: translateY(-50%); /* Center vertically */
+        }
+
+        .thumbnail {
+            width: 100%; /* Responsive thumbnail */
+            height: auto;
+        }
+
+        .close {
+            cursor: pointer;
+            float: right;
+            font-size: 24px;
+        }
+
+        @media (max-width: 600px) {
+            .search-button {
+                font-size: 14px; /* Smaller font on mobile */
+            }
+
+            .video-item {
+                padding: 10px; /* Less padding on mobile */
+            }
+
+            .container {
+                padding: 15px; /* Less padding on mobile */
+            }
+        }
+    </style>
+    <script>
+        function openPopup(popupId) {
+            document.getElementById(popupId).style.display = 'block';
+        }
+
+        function closePopup(popupId) {
+            document.getElementById(popupId).style.display = 'none';
+        }
+
+        function verifyAge() {
+            const name = document.getElementById('name').value;
+            const age = parseInt(document.getElementById('age').value);
+            const birthdate = new Date(document.getElementById('birthdate').value);
+            const currentYear = new Date().getFullYear();
+            const birthYear = birthdate.getFullYear();
+            const userAge = currentYear - birthYear;
+
+            if (age < 18 || userAge < 18) {
+                openPopup('age-error');
+            } else {
+                closePopup('age-verification');
+            }
+        }
+
+        async function searchVideos() {
+            const query = document.getElementById('query').value;
+            const response = await fetch(`https://joshweb.click/api/xsearch?q=${query}`);
+            const data = await response.json();
+
+            const resultsContainer = document.getElementById('results');
+            resultsContainer.innerHTML = '';
+
+            if (data.result.status) {
+                data.result.result.forEach(video => {
+                    const videoItem = document.createElement('div');
+                    videoItem.className = 'video-item';
+                    videoItem.innerHTML = `
+                        <h3>${video.title}</h3>
+                        <p>${video.info}</p>
+                        <button onclick="downloadVideo('${video.link}')">Download this video</button>
+                    `;
+                    resultsContainer.appendChild(videoItem);
+                });
+            }
+        }
+
+        async function downloadVideo(videoUrl) {
+            openPopup('waiting-download');
+            const response = await fetch(`https://joshweb.click/api/xdl?q=${videoUrl}`);
+            const downloadData = await response.json();
+
+            // Close the waiting popup
+            closePopup('waiting-download');
+
+            if (downloadData.result.status) {
+                const { title, URL, info, image, files } = downloadData.result;
+                document.getElementById('confirm-title').textContent = title;
+                document.getElementById('confirm-info').textContent = info;
+                document.getElementById('confirm-image').src = image;
+                document.getElementById('download-link-low').onclick = () => startDownload(files.low);
+                document.getElementById('download-link-high').onclick = () => startDownload(files.high);
+                openPopup('confirm-download');
+            } else {
+                openPopup('download-error');
+            }
+        }
+
+        function startDownload(fileUrl) {
+            window.location.href = fileUrl; // Start the download
+        }
+
+        // Automatically open the age verification popup on page load
+        window.onload = function() {
+            openPopup('age-verification');
+        }
+    </script>
+</head>
+<body>
+    <div id="age-verification" class="popup">
+        <div class="popup-content">
+            <span class="close" onclick="closePopup('age-verification')">&times;</span>
+            <h2>Age Verification</h2>
+            <p>Hi! Are you old enough to access here? 18+ is needed. Please put your name, age, and birth date.</p>
+            <input type="text" id="name" placeholder="Your Name" required>
+            <input type="number" id="age" placeholder="Your Age" required>
+            <input type="date" id="birthdate" required>
+            <button onclick="verifyAge()">Submit</button>
+        </div>
+    </div>
+
+    <div id="age-error" class="popup">
+        <div class="popup-content">
+            <span class="close" onclick="closePopup('age-error')">&times;</span>
+            <h2>Access Denied</h2>
+            <p>You must be 18 years or older to access this site.</p>
+            <button onclick="closePopup('age-error')">Close</button>
+        </div>
+    </div>
+
+    <div id="confirm-download" class="popup">
+        <div class="popup-content">
+            <span class="close" onclick="closePopup('confirm-download')">&times;</span>
+            <h2>Confirm Download</h2>
+            <img id="confirm-image" class="thumbnail" src="" alt="Thumbnail">
+            <h3 id="confirm-title"></h3>
+            <p id="confirm-info"></p>
+            <p>Please choose a quality:</p>
+            <button id="download-link-low">Low Quality</button>
+            <button id="download-link-high">High Quality</button>
+        </div>
+    </div>
+
+    <div id="waiting-download" class="popup">
+        <div class="popup-content">
+            <h2>Waiting for Download...</h2>
+            <p>Your request is being processed. Please wait.</p>
+        </div>
+    </div>
+
+    <div id="download-error" class="popup">
+        <div class="popup-content">
+            <span class="close" onclick="closePopup('download-error')">&times;</span>
+            <h2>Download Error</h2>
+            <p>There was an error downloading the video. Please try again.</p>
+            <button onclick="closePopup('download-error')">Close</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <h1>Video Search</h1>
+        <input type="text" id="query" placeholder="Enter your search query..." class="search-input">
+        <button onclick="searchVideos()" class="search-button">Search</button>
+        <div id="results" class="results"></div>
+    </div>
+</body>
+</html>
